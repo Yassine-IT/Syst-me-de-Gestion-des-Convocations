@@ -1243,6 +1243,28 @@
 [data-dir="rtl"] .conv-body,
 [data-dir="rtl"] .conv-table,
 [data-dir="rtl"] .preview-text { direction: ltr; text-align: left; }
+
+/* --- Bouton « Enregistrer dans le fichier » --- */
+.header-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 11px;
+  border: none;
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.18s;
+  box-shadow: var(--shadow-gold);
+  white-space: nowrap;
+}
+.header-save-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.header-save-btn:active { transform: scale(0.97); }
+[data-theme="dark"] .header-save-btn { color: #161d33; }
 </style>
 <script>
   // Appliquer le thème enregistré immédiatement (évite le clignotement)
@@ -1259,6 +1281,9 @@
 </script>
 </head>
 <body>
+
+<!-- Données intégrées dans le fichier (remplies par « Enregistrer dans le fichier ») -->
+<script type="application/json" id="anglo-embedded">{}</script>
 
 <!-- LOGIN SCREEN -->
 <div id="login-screen">
@@ -1360,6 +1385,9 @@
     <header class="header no-print">
       <h2 id="page-title">Tableau de bord</h2>
       <div class="header-actions">
+        <button class="header-save-btn" id="save-to-file-btn" title="Enregistrer toutes les données dans le fichier HTML (permanent)" onclick="saveToFile()">
+          <i class="fas fa-floppy-disk"></i> Enregistrer
+        </button>
         <button class="header-icon-btn" id="backup-export-btn" title="Sauvegarder les données (JSON)" onclick="exportBackup()">
           <i class="fas fa-cloud-arrow-down"></i>
         </button>
@@ -1604,6 +1632,9 @@
             <h3>Convocations Professeurs</h3>
           </div>
           <div class="card-body">
+            <div style="background:#fef9ee;border:1px solid rgba(201,168,76,0.45);border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:#7a5a14;line-height:1.6;">
+              💡 <strong>Important :</strong> après avoir ajouté ou supprimé des professeurs, cliquez sur <strong>« 💾 Enregistrer »</strong> (en haut) pour rendre les changements <strong>permanents dans le fichier</strong>. Sinon ils ne sont gardés que dans ce navigateur.
+            </div>
             <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:flex-end;">
               <div class="form-group" style="flex:1;min-width:160px;">
                 <label class="form-label">Nom Professeur *</label>
@@ -2308,9 +2339,19 @@ function mergePreloaded() {
   localStorage.setItem('anglo_exams', JSON.stringify(exams));
 }
 
-let students = JSON.parse(localStorage.getItem('anglo_students') || '[]');
-let exams = JSON.parse(localStorage.getItem('anglo_exams') || JSON.stringify(DEFAULT_EXAMS));
-let settings = JSON.parse(localStorage.getItem('anglo_settings') || JSON.stringify({
+// Données éventuellement enregistrées DANS le fichier HTML (voir saveToFile()).
+// Sert de source fiable quand localStorage est vide (ex: ouverture du fichier en local).
+const __embedded = (function () {
+  try {
+    const el = document.getElementById('anglo-embedded');
+    const o = el ? JSON.parse(el.textContent || '{}') : {};
+    return (o && o.__anglo) ? o : {};
+  } catch (e) { return {}; }
+})();
+
+let students = JSON.parse(localStorage.getItem('anglo_students') || JSON.stringify(__embedded.students || []));
+let exams = JSON.parse(localStorage.getItem('anglo_exams') || JSON.stringify(__embedded.exams || DEFAULT_EXAMS));
+let settings = JSON.parse(localStorage.getItem('anglo_settings') || JSON.stringify(__embedded.settings || {
   session: 'exp', city: 'Marrakech', year: '2025/2026', ref: 'ZDI/CONV/2025', logoUrl: null
 }));
 let selectedStudents = new Set();
@@ -4657,7 +4698,7 @@ function updateBackupSummary() {
 
 // =================== CONVOCATIONS PROFS ===================
 
-let profsConvocations = JSON.parse(localStorage.getItem('profsConvocations') || '[]');
+let profsConvocations = JSON.parse(localStorage.getItem('profsConvocations') || JSON.stringify(__embedded.profsConvocations || []));
 
 function populateRenameSelect() {
   const sel = document.getElementById('rename-old');
@@ -5589,6 +5630,54 @@ function toggleDir() {
 
 // Appliquer la direction enregistrée au démarrage
 applyDir(localStorage.getItem('anglo_dir') === 'rtl' ? 'rtl' : 'ltr');
+
+/* ---------- 💾 Enregistrer DANS le fichier HTML ---------- */
+/* Le navigateur ne peut pas réécrire le fichier ouvert sur le disque.
+   Cette fonction génère une NOUVELLE copie du fichier avec toutes les
+   données (élèves, examens, profs, réglages) intégrées de façon permanente.
+   L'utilisateur remplace son ancien fichier par celui téléchargé. */
+function saveToFile() {
+  try {
+    const payload = {
+      __anglo: true,
+      savedAt: new Date().toISOString(),
+      version: 1,
+      students: students,
+      exams: exams,
+      settings: settings,
+      profsConvocations: profsConvocations
+    };
+    const clone = document.documentElement.cloneNode(true);
+    // Intégrer (ou créer) l'îlot de données
+    let island = clone.querySelector('#anglo-embedded');
+    if (!island) {
+      island = clone.ownerDocument.createElement('script');
+      island.type = 'application/json';
+      island.id = 'anglo-embedded';
+      (clone.querySelector('body') || clone).appendChild(island);
+    }
+    island.textContent = JSON.stringify(payload);
+    // Réinitialiser l'écran de connexion dans la copie sauvegardée
+    const ls = clone.querySelector('#login-screen');
+    if (ls) ls.classList.remove('hidden');
+
+    const html = '<!DOCTYPE html>\n' + clone.outerHTML;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'anglo-school.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (typeof showToast === 'function')
+      showToast('💾 Fichier enregistré — remplacez l\'ancien fichier par le nouveau', 'success');
+  } catch (e) {
+    console.error(e);
+    if (typeof showToast === 'function') showToast('❌ Erreur lors de l\'enregistrement', 'error');
+  }
+}
 </script>
 </body>
 </html>
