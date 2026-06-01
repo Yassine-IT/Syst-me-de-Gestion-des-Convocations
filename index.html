@@ -1802,13 +1802,16 @@
             <h3>Listes d'Émargement par Zone</h3>
           </div>
           <div class="card-body">
+            <div style="background:#ede9fe;border:1px solid rgba(124,58,237,0.3);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#4c1d95;line-height:1.6;">
+              🔗 <strong>Liaison automatique :</strong> les surveillants de chaque zone sont récupérés automatiquement depuis les <em>Convocations Profs</em> (selon le numéro de zone). Les champs ci-dessous ne servent que de repli pour les zones sans convocation.
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;">
               <div class="form-group">
-                <label class="form-label">👤 Nom du Professeur surveillant</label>
-                <input class="form-input" id="em-prof" placeholder="Ex: M. Benali Hassan" value="Mme Hanane" oninput="renderEmargement()" />
+                <label class="form-label">👤 Professeur (repli si aucune convocation)</label>
+                <input class="form-input" id="em-prof" placeholder="Ex: M. Benali Hassan" value="" oninput="renderEmargement()" />
               </div>
               <div class="form-group">
-                <label class="form-label">📚 Matière surveillée</label>
+                <label class="form-label">📚 Matière (repli)</label>
                 <input class="form-input" id="em-matiere" placeholder="Ex: Mathématiques" oninput="renderEmargement()" />
               </div>
               <button class="btn btn-primary" onclick="printEmargement()" style="height:42px;">🖨️ Imprimer toutes les listes</button>
@@ -3838,6 +3841,24 @@ function printTickets() {
 
 // =================== EMARGEMENT ===================
 
+// Récupère automatiquement les surveillants d'une zone depuis les convocations profs.
+// Le lien se fait par le NUMÉRO de zone (ex: "zone 8" ↔ "Zone 8" ↔ "8").
+function getZoneSurveillants(zoneVal) {
+  const zNum = (zoneVal || '').toString().replace(/\D/g, '');
+  if (!zNum) return [];
+  const seen = new Set();
+  const out = [];
+  profsConvocations
+    .filter(p => (p.zone || '').toString().replace(/\D/g, '') === zNum)
+    .forEach(p => {
+      const key = `${p.name}|${p.matiere}|${p.date}`;
+      if (!seen.has(key)) { seen.add(key); out.push(p); }
+    });
+  // Trier par date puis matière
+  out.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.matiere || '').localeCompare(b.matiere || ''));
+  return out;
+}
+
 function buildEmargementHTML() {
   const grouped = {};
   students.forEach(s => {
@@ -3860,8 +3881,40 @@ function buildEmargementHTML() {
     const salle = list[0].room || 'Salle Polyvalent';
     const profEl = document.getElementById('em-prof');
     const matEl = document.getElementById('em-matiere');
-    const profName = (profEl && profEl.value.trim()) || '';
-    const matiere = (matEl && matEl.value.trim()) || '';
+    const manualProf = (profEl && profEl.value.trim()) || '';
+    const manualMatiere = (matEl && matEl.value.trim()) || '';
+
+    // 🔗 Surveillants récupérés AUTOMATIQUEMENT depuis les convocations profs (par zone)
+    const autoSurv = getZoneSurveillants(zone);
+    const fmtShort = (d) => { try { return new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' }); } catch(e){ return d || ''; } };
+
+    // Nom(s) affiché(s) : priorité à l'auto ; sinon repli sur la saisie manuelle
+    const profName = autoSurv.length === 1 ? autoSurv[0].name
+                    : autoSurv.length === 0 ? manualProf : '';
+    const matiere = autoSurv.length === 1 ? (autoSurv[0].matiere || '')
+                    : autoSurv.length === 0 ? manualMatiere : '';
+
+    // Bloc-tableau listant tous les surveillants de la zone (si plusieurs matières/dates)
+    const survBlock = autoSurv.length > 0 ? `
+  <div style="border:1px solid rgba(124,58,237,0.35);border-radius:8px;overflow:hidden;margin-bottom:14px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+    <div style="background:#ede9fe;color:#4c1d95;padding:6px 12px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">👤 Surveillant(s) — ${zoneLabel} (auto · convocations profs)</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;">
+      <thead><tr style="background:#f5f3ff;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+        <th style="text-align:left;padding:5px 12px;font-size:9px;font-weight:800;color:#6d28d9;text-transform:uppercase;letter-spacing:0.06em;">Professeur</th>
+        <th style="text-align:left;padding:5px 12px;font-size:9px;font-weight:800;color:#6d28d9;text-transform:uppercase;letter-spacing:0.06em;">Matière</th>
+        <th style="text-align:left;padding:5px 12px;font-size:9px;font-weight:800;color:#6d28d9;text-transform:uppercase;letter-spacing:0.06em;">Date</th>
+        <th style="text-align:left;padding:5px 12px;font-size:9px;font-weight:800;color:#6d28d9;text-transform:uppercase;letter-spacing:0.06em;">Séance</th>
+      </tr></thead>
+      <tbody>
+        ${autoSurv.map((p,i)=>`<tr style="${i%2===1?'background:#faf9ff;':'background:#fff;'}border-top:1px solid #ede9fe;">
+          <td style="padding:6px 12px;font-weight:800;color:#0d1f3c;font-size:11px;">${p.name || '—'}</td>
+          <td style="padding:6px 12px;color:#1a3460;font-size:11px;">${p.matiere || '—'}</td>
+          <td style="padding:6px 12px;color:#444;font-size:11px;">${fmtShort(p.date)}</td>
+          <td style="padding:6px 12px;color:#444;font-size:11px;">${p.seance || '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>` : '';
 
     const rows = list.map((s, i) => `
       <tr style="border-bottom:1px solid #d0d7e3;${i%2===1?'background:#eef2f7;':'background:#ffffff;'}">
@@ -3896,7 +3949,7 @@ function buildEmargementHTML() {
     ${profName ? `<div style="background:#ede9fe;border:2px solid #7c3aed;border-radius:8px;padding:6px 14px;font-size:11px;font-weight:700;color:#4c1d95;">👤 Professeur : ${profName}</div>` : ''}
     ${matiere ? `<div style="background:#ffedd5;border:2px solid #ea580c;border-radius:8px;padding:6px 14px;font-size:11px;font-weight:700;color:#7c2d12;">✏️ Matière : ${matiere}</div>` : ''}
   </div>
-
+${survBlock}
   <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1a3460;border-left:4px solid #c9a84c;padding-left:10px;margin-bottom:10px;">Liste des candidats — ${zoneLabel}</div>
 
   <table style="width:100%;border-collapse:collapse;font-size:11.5px;">
