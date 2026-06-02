@@ -11,6 +11,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
   :root {
     --navy: #0d1f3c;
@@ -1265,6 +1267,22 @@
 .header-save-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
 .header-save-btn:active { transform: scale(0.97); }
 [data-theme="dark"] .header-save-btn { color: #161d33; }
+
+/* --- Indicateur Firebase --- */
+.firebase-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(13,31,60,0.06);
+  border: 1px solid rgba(13,31,60,0.10);
+}
+[data-theme="dark"] .firebase-status {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.12);
+}
+[data-theme="dark"] #firebase-label { color: #a0aec0 !important; }
 </style>
 <script>
   // Appliquer le thème enregistré immédiatement (évite le clignotement)
@@ -1385,6 +1403,10 @@
     <header class="header no-print">
       <h2 id="page-title">Tableau de bord</h2>
       <div class="header-actions">
+        <div class="firebase-status" title="État de la synchronisation Firebase">
+          <span id="firebase-dot" style="width:9px;height:9px;border-radius:50%;background:#6b7280;display:inline-block;transition:background 0.4s;flex-shrink:0;"></span>
+          <span id="firebase-label" style="font-size:11px;font-weight:600;color:#6b7280;">Hors ligne</span>
+        </div>
         <button class="header-save-btn" id="save-to-file-btn" title="Enregistrer toutes les données dans le fichier HTML (permanent)" onclick="saveToFile()">
           <i class="fas fa-floppy-disk"></i> Enregistrer
         </button>
@@ -1638,7 +1660,9 @@
             <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:flex-end;">
               <div class="form-group" style="flex:1;min-width:160px;">
                 <label class="form-label">Nom Professeur *</label>
-                <input class="form-input" id="prof-name" placeholder="Ex: Mme Khalloufi" />
+                <input class="form-input" id="prof-name" list="prof-names-datalist"
+                       placeholder="Tapez pour chercher…" autocomplete="off" />
+                <datalist id="prof-names-datalist"></datalist>
               </div>
               <div class="form-group" style="flex:1;min-width:120px;">
                 <label class="form-label">Zone *</label>
@@ -2315,6 +2339,51 @@ const PRELOADED_STUDENTS = [
   {id:'jhs136',name:'ZOUHI NADA',number:'zone 11',class:'3 JHS-1',massar:'G176117978',room:'salle polyvalente',examNum:'136',codage:'3J/11/136'}
 ];
 
+// =================== LISTE DES PROFESSEURS (pré-chargée) ===================
+// Source : Liste_des_professeurs.xlsx — 40 professeurs
+const PRELOADED_PROF_NAMES = [
+  'Hiba ABDOUNI',
+  'Yassine AGGUINE',
+  'Noureddine AGOULZI',
+  'Abdelilah AICHE',
+  'Lahcen AIT ALI OU HSSAINE',
+  'Tarik AIT HSSAIN',
+  'M. AMMARI',
+  'Hind BELBARAKA',
+  'Siham BEN AATAR',
+  'Oumaima BENNANI',
+  'Maroine BOUHADI',
+  'Khadija BSILA',
+  'Meriem CHAHBI',
+  'Souad CHAJRI',
+  'Zhor CHAMRAH',
+  'Mme DOUIRI',
+  'Najat EL BOUR',
+  'Taha EL FACHTALI',
+  'Loubna EL GOUDROUNE',
+  'M. EL HOR SAID',
+  'Sliman EL MANSOURI',
+  'Hassane ELAMYN',
+  'Yassine ERRAZI',
+  'M. HAMMENI',
+  'Boutaïna JABRI',
+  'Khalid JEDDI',
+  'Hicham KACIM',
+  'Abdelhalim KASBAOUI',
+  'Khadija KHALLOUFI',
+  'Naima LAKHSSASS',
+  'Afaf LAMDAK',
+  'M. MAROUAN',
+  'Moundir NICER',
+  'Rachid OULED HOUSSEINE',
+  'Fouad OUNAIMI',
+  'M. RADOUANE',
+  'Bouchra TOUNZI',
+  'M. ZAD',
+  'Wiame ZKHIRI',
+  'Souad ZUINE'
+];
+
 // Merge preloaded students (avoid duplicates by examNum)
 function mergePreloaded() {
   const existingNums = new Set(students.map(s => s.examNum));
@@ -2364,6 +2433,12 @@ function persist() {
   localStorage.setItem('anglo_students', JSON.stringify(students));
   localStorage.setItem('anglo_exams', JSON.stringify(exams));
   localStorage.setItem('anglo_settings', JSON.stringify(settings));
+  if (window.__angloFireDB) {
+    window.__angloFireDB.collection('anglo').doc('data')
+      .set({ students: students, exams: exams, settings: settings }, { merge: true })
+      .then(function(){ angloSyncPulse(); })
+      .catch(function(e){ console.error('Firebase write:', e); });
+  }
 }
 
 // =================== UTILS ===================
@@ -4886,6 +4961,21 @@ function deleteProfConvocation(id) {
 
 function saveProfData() {
   localStorage.setItem('profsConvocations', JSON.stringify(profsConvocations));
+  if (window.__angloFireDB) {
+    window.__angloFireDB.collection('anglo').doc('data')
+      .set({ profsConvocations: profsConvocations }, { merge: true })
+      .then(function(){ angloSyncPulse(); })
+      .catch(function(e){ console.error('Firebase write:', e); });
+  }
+}
+
+// Remplit la <datalist> du champ "Nom Professeur" avec la liste pré-chargée.
+function initProfNamesDatalist() {
+  const dl = document.getElementById('prof-names-datalist');
+  if (!dl || typeof PRELOADED_PROF_NAMES === 'undefined') return;
+  dl.innerHTML = PRELOADED_PROF_NAMES
+    .map(n => `<option value="${n}"></option>`)
+    .join('');
 }
 
 function renderProfsConvocations() {
@@ -5505,6 +5595,7 @@ document.getElementById('login-password').addEventListener('keydown', function(e
 
 populateSelects();
 mergePreloaded();
+initProfNamesDatalist();
 document.getElementById('cfg-city').value = settings.city;
 document.getElementById('cfg-year').value = settings.year;
 document.getElementById('cfg-ref').value = settings.ref;
@@ -5632,13 +5723,12 @@ function toggleDir() {
 applyDir(localStorage.getItem('anglo_dir') === 'rtl' ? 'rtl' : 'ltr');
 
 /* ---------- 💾 Enregistrer DANS le fichier HTML ---------- */
-/* Le navigateur ne peut pas réécrire le fichier ouvert sur le disque.
-   Cette fonction génère une NOUVELLE copie du fichier avec toutes les
-   données (élèves, examens, profs, réglages) intégrées de façon permanente.
-   L'utilisateur remplace son ancien fichier par celui téléchargé. */
+/* Version robuste : modifie le DOM en mémoire temporairement,
+   sérialise, puis restaure. Fallback via window.open si le
+   téléchargement direct échoue (ex: protocole file://). */
 function saveToFile() {
   try {
-    const payload = {
+    var payload = JSON.stringify({
       __anglo: true,
       savedAt: new Date().toISOString(),
       version: 1,
@@ -5646,38 +5736,173 @@ function saveToFile() {
       exams: exams,
       settings: settings,
       profsConvocations: profsConvocations
-    };
-    const clone = document.documentElement.cloneNode(true);
-    // Intégrer (ou créer) l'îlot de données
-    let island = clone.querySelector('#anglo-embedded');
-    if (!island) {
-      island = clone.ownerDocument.createElement('script');
-      island.type = 'application/json';
-      island.id = 'anglo-embedded';
-      (clone.querySelector('body') || clone).appendChild(island);
-    }
-    island.textContent = JSON.stringify(payload);
-    // Réinitialiser l'écran de connexion dans la copie sauvegardée
-    const ls = clone.querySelector('#login-screen');
-    if (ls) ls.classList.remove('hidden');
+    });
 
-    const html = '<!DOCTYPE html>\n' + clone.outerHTML;
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'anglo-school.html';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    if (typeof showToast === 'function')
-      showToast('💾 Fichier enregistré — remplacez l\'ancien fichier par le nouveau', 'success');
+    /* ① Sauvegarder l'état actuel de l'interface */
+    var island = document.getElementById('anglo-embedded');
+    var prevIslandText = island ? island.textContent : '';
+    var loginEl = document.getElementById('login-screen');
+    var wasLoggedIn = loginEl && loginEl.classList.contains('hidden');
+
+    /* ② Modifier temporairement (pas de cloneNode — plus fiable) */
+    if (island) island.textContent = payload;
+    if (loginEl && wasLoggedIn) loginEl.classList.remove('hidden');
+
+    /* ③ Sérialiser le document entier */
+    var fullHTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+    /* ④ Restaurer immédiatement l'état (synchrone, pas de clignotement) */
+    if (island) island.textContent = prevIslandText;
+    if (loginEl && wasLoggedIn) loginEl.classList.add('hidden');
+
+    /* ⑤ Télécharger — méthode 1: Blob + lien <a download> */
+    var downloaded = false;
+    try {
+      var blob = new Blob([fullHTML], { type: 'application/octet-stream' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'anglo-school.html';
+      a.style.position = 'fixed';
+      a.style.left = '-9999px';
+      document.body.appendChild(a);
+      a.click();
+      downloaded = true;
+      setTimeout(function () {
+        try { document.body.removeChild(a); } catch (e2) {}
+        try { URL.revokeObjectURL(url); } catch (e3) {}
+      }, 2000);
+    } catch (blobErr) {
+      console.warn('Blob download failed:', blobErr);
+    }
+
+    /* ⑥ Fallback — méthode 2: ouvrir dans une nouvelle fenêtre (Ctrl+S) */
+    if (!downloaded) {
+      var w = window.open('', '_blank');
+      if (w) {
+        w.document.open('text/html', 'replace');
+        w.document.write(fullHTML);
+        w.document.close();
+        showToast('⚠️ Le téléchargement auto n\'a pas marché. Faites Ctrl+S dans la nouvelle fenêtre.', 'info');
+        return;
+      } else {
+        showToast('❌ Pop-up bloqué — autorisez les pop-ups pour ce site.', 'error');
+        return;
+      }
+    }
+
+    showToast('💾 Fichier téléchargé ! Remplacez l\'ancien par le nouveau.', 'success');
   } catch (e) {
-    console.error(e);
-    if (typeof showToast === 'function') showToast('❌ Erreur lors de l\'enregistrement', 'error');
+    console.error('saveToFile error:', e);
+    showToast('❌ Erreur : ' + (e.message || e), 'error');
   }
 }
+
+/* =============================================================
+   FIREBASE FIRESTORE — Synchronisation cloud en temps réel
+   Chaque modification est sauvegardée instantanément dans
+   la base de données et visible sur tous les appareils.
+   ============================================================= */
+
+var ANGLO_FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyB14saxDfk_AdJ9pM-mVDlQjgs5sJ0Fnwo",
+  authDomain:        "angloschool-27ded.firebaseapp.com",
+  projectId:         "angloschool-27ded",
+  storageBucket:     "angloschool-27ded.firebasestorage.app",
+  messagingSenderId: "216955216252",
+  appId:             "1:216955216252:web:0b459c0d3ffc8aaa5604f9",
+  measurementId:     "G-1WWT7JMSBE"
+};
+
+/* Indicateur de synchronisation */
+function angloSyncShow(state) {
+  var dot = document.getElementById('firebase-dot');
+  var lbl = document.getElementById('firebase-label');
+  if (!dot) return;
+  var colors = { ok:'#22c55e', sync:'#f59e0b', off:'#6b7280', err:'#ef4444' };
+  var labels = { ok:'Synchronisé ✓', sync:'Sync…', off:'Hors ligne', err:'Erreur' };
+  dot.style.background = colors[state] || colors.off;
+  if (lbl) { lbl.textContent = labels[state] || ''; lbl.style.color = colors[state] || '#6b7280'; }
+}
+
+function angloSyncPulse() {
+  angloSyncShow('sync');
+  setTimeout(function(){ angloSyncShow('ok'); }, 1500);
+}
+
+/* Initialisation Firestore */
+function initFirebase() {
+  try {
+    if (!firebase.apps || !firebase.apps.length) {
+      firebase.initializeApp(ANGLO_FIREBASE_CONFIG);
+    }
+    var db = firebase.firestore();
+    window.__angloFireDB = db;
+    angloSyncShow('sync');
+
+    var docRef = db.collection('anglo').doc('data');
+
+    /* ── Chargement initial depuis Firestore ── */
+    docRef.get().then(function(doc) {
+      if (doc.exists) {
+        var d = doc.data() || {};
+        if (Array.isArray(d.students) && d.students.length > 0) {
+          students = d.students;
+          localStorage.setItem('anglo_students', JSON.stringify(students));
+        }
+        if (Array.isArray(d.exams) && d.exams.length > 0) {
+          exams = d.exams;
+          localStorage.setItem('anglo_exams', JSON.stringify(exams));
+        }
+        if (d.settings && d.settings.city) {
+          settings = Object.assign({}, settings, d.settings);
+          localStorage.setItem('anglo_settings', JSON.stringify(settings));
+        }
+        if (Array.isArray(d.profsConvocations) && d.profsConvocations.length > 0) {
+          profsConvocations = d.profsConvocations;
+          localStorage.setItem('profsConvocations', JSON.stringify(profsConvocations));
+        }
+        renderAll();
+      }
+      angloSyncShow('ok');
+    }).catch(function(err) {
+      console.error('Firestore load:', err);
+      angloSyncShow('err');
+    });
+
+    /* ── Écoute temps réel (toute modification = sync immédiat) ── */
+    docRef.onSnapshot(function(doc) {
+      if (!doc.exists) return;
+      var d = doc.data() || {};
+
+      if (Array.isArray(d.profsConvocations)) {
+        if (JSON.stringify(d.profsConvocations) !== JSON.stringify(profsConvocations)) {
+          profsConvocations = d.profsConvocations;
+          localStorage.setItem('profsConvocations', JSON.stringify(profsConvocations));
+          if (typeof renderProfsConvocations === 'function') renderProfsConvocations();
+          if (typeof renderEmargement === 'function') renderEmargement();
+        }
+      }
+      if (Array.isArray(d.students)) {
+        if (JSON.stringify(d.students) !== JSON.stringify(students)) {
+          students = d.students;
+          localStorage.setItem('anglo_students', JSON.stringify(students));
+          if (typeof renderAll === 'function') renderAll();
+        }
+      }
+      angloSyncShow('ok');
+    }, function(err) {
+      console.warn('Firestore snapshot:', err);
+      angloSyncShow('err');
+    });
+
+  } catch(e) {
+    console.error('Firebase init:', e);
+    angloSyncShow('err');
+  }
+}
+
+initFirebase();
 </script>
 </body>
 </html>
