@@ -7964,6 +7964,37 @@
           </div>
         </div>
 
+        <!-- TEXTE CONVOCATION PROFESSEUR -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">📝</span>
+            <h3>Texte de la Convocation Professeur</h3>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px; color:rgba(13,31,60,0.55); line-height:1.7; margin-bottom:16px;">
+              Modifiez le texte qui apparaît sur la convocation de surveillance des professeurs. Les changements s'appliquent automatiquement à toutes les convocations imprimées.
+            </p>
+
+            <div class="form-group" style="margin-bottom:18px;">
+              <label class="form-label">Message principal</label>
+              <textarea class="form-input" id="cfg-prof-text" rows="9" oninput="saveProfTexts()" style="resize:vertical; line-height:1.6; font-family:inherit;"></textarea>
+              <div style="font-size:11px;color:rgba(13,31,60,0.45);margin-top:6px;line-height:1.6;">
+                💡 Astuce : tapez <code style="background:rgba(201,168,76,0.15);padding:1px 5px;border-radius:4px;font-weight:700;">{nom}</code> pour insérer automatiquement le nom du professeur. Laissez une ligne vide pour séparer les paragraphes. Toute mention « 20 minutes » est mise en gras automatiquement.
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:18px;">
+              <label class="form-label">Instructions importantes <span style="font-weight:400;color:rgba(13,31,60,0.45);">(une instruction par ligne)</span></label>
+              <textarea class="form-input" id="cfg-prof-instructions" rows="6" oninput="saveProfTexts()" style="resize:vertical; line-height:1.6; font-family:inherit;"></textarea>
+            </div>
+
+            <div class="btn-row" style="flex-wrap:wrap;gap:12px;">
+              <button class="btn btn-danger" onclick="resetProfTexts()">↺ Réinitialiser le texte par défaut</button>
+            </div>
+            <div id="prof-text-status" style="margin-top:12px;font-size:12px;color:var(--green);font-weight:600;"></div>
+          </div>
+        </div>
+
         <!-- BACKUP / RESTORE -->
         <div class="card">
           <div class="card-header">
@@ -8284,6 +8315,12 @@ let settings = JSON.parse(localStorage.getItem('anglo_settings') || JSON.stringi
   session: 'exp', city: 'Marrakech', year: '2025/2026', ref: 'ZDI/CONV/2025', logoUrl: null, cachetUrl: null
 }));
 if (typeof settings.cachetUrl === 'undefined') settings.cachetUrl = null;
+
+// ── Texte de la convocation Prof (modifiable depuis Paramètres) ──
+const DEFAULT_PROF_TEXT = "Bonjour. Comme prévu, l'établissement organisera la semaine prochaine les derniers devoirs surveillés du 2ème semestre, sous forme d'évaluations communes. Pour mieux gérer ces dernières, un planning de surveillance a été élaboré dans l'objectif de couvrir toute la période des évaluations avec tout ce qu'on a comme professeurs disponibles. À cet effet, vous êtes convié(e) à assurer la surveillance selon le planning qui vous a été affecté et que vous trouverez ci-joint. La direction vous prie de bien vouloir vous présenter au siège du secrétariat des examens (salle POLYVALENTE) 20 minutes avant le début des évaluations pour recevoir les épreuves et connaître la salle qui vous a été affectée. À la fin de chaque épreuve, veuillez remettre les copies aux accompagnantes éducatives du cycle auquel appartient la classe que vous avez surveillée. La direction compte beaucoup sur votre collaboration pour réussir ensemble l'étape des évaluations.\nMerci.";
+const DEFAULT_PROF_INSTRUCTIONS = "Se présenter 20 minutes avant le début de la séance, muni de cette convocation.\nRecevoir le matériel d'examen et les consignes\nSuperviser les candidats selon les protocoles établis\nRespecter strictement les horaires et les procédures de surveillance\nRemettre les copies et documents à la fin de la séance";
+if (typeof settings.profText === 'undefined' || settings.profText === null) settings.profText = DEFAULT_PROF_TEXT;
+if (typeof settings.profInstructions === 'undefined' || settings.profInstructions === null) settings.profInstructions = DEFAULT_PROF_INSTRUCTIONS;
 let selectedStudents = new Set();
 let editingStudentId = null;
 let selectedForDelete = new Set();
@@ -9391,6 +9428,38 @@ function deleteCachet() {
   if (btn) btn.style.display = 'none';
 }
 
+// ── Texte convocation Prof : sauvegarde / reset / chargement ──
+function saveProfTexts() {
+  const tEl = document.getElementById('cfg-prof-text');
+  const iEl = document.getElementById('cfg-prof-instructions');
+  if (tEl) settings.profText = tEl.value;
+  if (iEl) settings.profInstructions = iEl.value;
+  persist();
+  const status = document.getElementById('prof-text-status');
+  if (status) {
+    status.textContent = '✅ Texte enregistré — appliqué aux convocations';
+    clearTimeout(window.__profTextTimer);
+    window.__profTextTimer = setTimeout(() => { status.textContent = ''; }, 2500);
+  }
+}
+
+function resetProfTexts() {
+  showConfirm('Réinitialiser le texte et les instructions par défaut ?', () => {
+    settings.profText = DEFAULT_PROF_TEXT;
+    settings.profInstructions = DEFAULT_PROF_INSTRUCTIONS;
+    persist();
+    loadProfTextFields();
+    showToast('✅ Texte réinitialisé', 'success');
+  });
+}
+
+function loadProfTextFields() {
+  const tEl = document.getElementById('cfg-prof-text');
+  const iEl = document.getElementById('cfg-prof-instructions');
+  if (tEl) tEl.value = settings.profText || DEFAULT_PROF_TEXT;
+  if (iEl) iEl.value = settings.profInstructions || DEFAULT_PROF_INSTRUCTIONS;
+}
+
 // =================== DASHBOARD ===================
 
 function renderDashboard() {
@@ -9604,6 +9673,7 @@ function renderAll() {
       if (cbtn) cbtn.style.display = 'inline-flex';
     }
   }
+  loadProfTextFields();
 }
 
 // =================== INIT ===================
@@ -10787,6 +10857,8 @@ function importBackup(evt) {
         exams = data.exams || [];
         if (data.settings) {
           settings = { ...settings, ...data.settings };
+          if (!settings.profText) settings.profText = DEFAULT_PROF_TEXT;
+          if (!settings.profInstructions) settings.profInstructions = DEFAULT_PROF_INSTRUCTIONS;
           document.getElementById('cfg-city').value = settings.city;
           document.getElementById('cfg-year').value = settings.year;
           document.getElementById('cfg-ref').value = settings.ref;
@@ -11175,6 +11247,39 @@ function cancelProfEdit() {
   }
 }
 
+// ── Helpers texte convocation Prof (depuis Paramètres) ──
+function escapeProfHtml(s) {
+  return (s || '').toString()
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Rend le texte principal : remplace {nom} par le nom, met en gras "XX minutes",
+// gère le 2ème -> 2ᵉᵐᵉ, et sépare les paragraphes par les sauts de ligne.
+function renderProfText(profName) {
+  let txt = (settings.profText || DEFAULT_PROF_TEXT);
+  const paras = txt.split(/\n+/).filter(p => p.trim() !== '');
+  return paras.map(p => {
+    let safe = escapeProfHtml(p);
+    safe = safe.replace(/\{nom\}/gi, escapeProfHtml(profName || ''));
+    // Gras automatique sur "<nombre> minutes"
+    safe = safe.replace(/(\d+\s*minutes)/g, '<strong>$1</strong>');
+    // 2ème -> 2ᵉᵐᵉ joliment
+    safe = safe.replace(/2\s*ème/gi, '2<sup>ème</sup>');
+    return `<p style="font-size:10.5px;line-height:1.75;color:#2d3748;margin:0 0 8px;text-align:justify;">${safe}</p>`;
+  }).join('');
+}
+
+// Rend les instructions (une par ligne) en <li>
+function renderProfInstructions() {
+  let txt = (settings.profInstructions || DEFAULT_PROF_INSTRUCTIONS);
+  const items = txt.split(/\n+/).map(l => l.trim()).filter(l => l !== '');
+  return items.map(l => {
+    let safe = escapeProfHtml(l);
+    safe = safe.replace(/(\d+\s*minutes)/g, '<strong>$1</strong>');
+    return `<li>${safe}</li>`;
+  }).join('');
+}
+
 function buildProfConvocationHTML(prof) {
   const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   
@@ -11219,10 +11324,7 @@ function buildProfConvocationHTML(prof) {
     <!-- MESSAGE / NOTE -->
     <div style="background:#f7f9fc;border:1px solid rgba(13,31,60,0.08);border-left:3px solid #c9a84c;border-radius:10px;padding:14px 18px;margin-bottom:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
       <p style="font-size:11.5px;font-weight:700;color:#0d1f3c;margin:0 0 8px;">${prof.name},</p>
-      <p style="font-size:10.5px;line-height:1.75;color:#2d3748;margin:0;text-align:justify;">
-        Bonjour. Comme prévu, l'établissement organisera la semaine prochaine les derniers devoirs surveillés du 2<sup>ème</sup> semestre, sous forme d'évaluations communes. Pour mieux gérer ces dernières, un planning de surveillance a été élaboré dans l'objectif de couvrir toute la période des évaluations avec tout ce qu'on a comme professeurs disponibles. À cet effet, vous êtes convié(e) à assurer la surveillance selon le planning qui vous a été affecté et que vous trouverez ci-joint. La direction vous prie de bien vouloir vous présenter au siège du secrétariat des examens (salle POLYVALENTE) <strong>20 minutes</strong> avant le début des évaluations pour recevoir les épreuves et connaître la salle qui vous a été affectée. À la fin de chaque épreuve, veuillez remettre les copies aux accompagnantes éducatives du cycle auquel appartient la classe que vous avez surveillée. La direction compte beaucoup sur votre collaboration pour réussir ensemble l'étape des évaluations.
-      </p>
-      <p style="font-size:10.5px;font-weight:700;color:#0d1f3c;margin:8px 0 0;">Merci.</p>
+      ${renderProfText(prof.name)}
     </div>
 
     <!-- DETAIL GRID -->
@@ -11248,11 +11350,7 @@ function buildProfConvocationHTML(prof) {
     </div>
     <div style="background:#f7f9fc;border-radius:10px;border:1px solid rgba(13,31,60,0.08);padding:12px 16px;margin-bottom:20px;">
       <ol style="padding-left:16px;font-size:11px;line-height:1.8;color:#2d3748;margin:0;">
-        <li>Se présenter <strong>20 minutes avant</strong> le début de la séance, muni de cette convocation.</li>
-        <li>Recevoir le matériel d'examen et les consignes</li>
-        <li>Superviser les candidats selon les protocoles établis</li>
-        <li>Respecter strictement les horaires et les procédures de surveillance</li>
-        <li>Remettre les copies et documents à la fin de la séance</li>
+        ${renderProfInstructions()}
       </ol>
     </div>
 
@@ -11395,10 +11493,7 @@ function buildGroupedProfConvocationHTML(profName, assignments) {
     <!-- MESSAGE / NOTE -->
     <div style="background:#f7f9fc;border:1px solid rgba(13,31,60,0.08);border-left:3px solid #c9a84c;border-radius:10px;padding:14px 18px;margin-bottom:20px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
       <p style="font-size:11.5px;font-weight:700;color:#0d1f3c;margin:0 0 8px;">${profName},</p>
-      <p style="font-size:10.5px;line-height:1.75;color:#2d3748;margin:0;text-align:justify;">
-        Bonjour. Comme prévu, l'établissement organisera la semaine prochaine les derniers devoirs surveillés du 2<sup>ème</sup> semestre, sous forme d'évaluations communes. Pour mieux gérer ces dernières, un planning de surveillance a été élaboré dans l'objectif de couvrir toute la période des évaluations avec tout ce qu'on a comme professeurs disponibles. À cet effet, vous êtes convié(e) à assurer la surveillance selon le planning qui vous a été affecté et que vous trouverez ci-joint. La direction vous prie de bien vouloir vous présenter au siège du secrétariat des examens (salle POLYVALENTE) <strong>20 minutes</strong> avant le début des évaluations pour recevoir les épreuves et connaître la salle qui vous a été affectée. À la fin de chaque épreuve, veuillez remettre les copies aux accompagnantes éducatives du cycle auquel appartient la classe que vous avez surveillée. La direction compte beaucoup sur votre collaboration pour réussir ensemble l'étape des évaluations.
-      </p>
-      <p style="font-size:10.5px;font-weight:700;color:#0d1f3c;margin:8px 0 0;">Merci.</p>
+      ${renderProfText(profName)}
     </div>
 
     <!-- PLANNING TABLE -->
@@ -11438,11 +11533,7 @@ function buildGroupedProfConvocationHTML(profName, assignments) {
     </div>
     <div style="background:#f7f9fc;border-radius:10px;border:1px solid rgba(13,31,60,0.08);padding:12px 16px;margin-bottom:20px;">
       <ol style="padding-left:16px;font-size:11px;line-height:1.8;color:#2d3748;margin:0;">
-        <li>Se présenter <strong>20 minutes avant</strong> le début de la séance, muni de cette convocation.</li>
-        <li>Recevoir le matériel d'examen et les consignes</li>
-        <li>Superviser les candidats selon les protocoles établis</li>
-        <li>Respecter strictement les horaires et les procédures de surveillance</li>
-        <li>Remettre les copies et documents à la fin de la séance</li>
+        ${renderProfInstructions()}
       </ol>
     </div>
 
