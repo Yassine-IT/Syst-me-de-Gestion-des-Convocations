@@ -14038,8 +14038,8 @@ function printQRLabels() {
   const isPetit = fmt === 'petit';
   // Dimensions selon le format choisi
   const cfg = isPetit
-    ? { h: '16.9mm', labelW: '48mm', rows: 17, perPage: 68, qrW: '14mm', pad: '0.8mm 1.2mm', fCode: '7.5px', fName: '5px', fMat: '4.5px', gap: '0.4mm', pagePad: '5mm 7mm', frame: false, label: '48×16,9mm · Ref 68 (4×17)' }
-    : { h: '25.5mm', labelW: '48.5mm', rows: 11, perPage: 44, qrW: '22mm', pad: '2mm 2.5mm', fCode: '10px', fName: '6px', fMat: '5.5px', gap: '1mm', pagePad: '8mm', frame: true, label: '48,5×25,5mm (44/page)' };
+    ? { h: '16.9mm', labelW: '48mm', rows: 17, perPage: 68, qrW: '14mm', qrImg: '12mm', pad: '0.8mm 1.2mm', fCode: '7.5px', fName: '5px', fMat: '4.5px', gap: '0.4mm', pagePad: '5mm 7mm', frame: false, label: '48×16,9mm · Ref 68 (4×17)' }
+    : { h: '25.5mm', labelW: '48.5mm', rows: 11, perPage: 44, qrW: '22mm', qrImg: '20mm', pad: '2mm 2.5mm', fCode: '10px', fName: '6px', fMat: '5.5px', gap: '1mm', pagePad: '8mm', frame: true, label: '48,5×25,5mm (44/page)' };
 
   const fNiveau = document.getElementById('qrlbl-niveau') ? document.getElementById('qrlbl-niveau').value : '';
   const fClass = document.getElementById('qrlbl-class') ? document.getElementById('qrlbl-class').value : '';
@@ -14175,11 +14175,13 @@ function printQRLabels() {
         padding: ${cfg.pagePad};
         display: grid;
         grid-template-columns: repeat(4, ${cfg.labelW});
+        ${cfg.frame ? '' : 'justify-content: center;'}
         grid-auto-rows: ${cfg.h};
         gap: 0;
         margin: 0;
         position: relative;
         z-index: 1;
+        box-sizing: border-box;
       }
 
       .qrlabel {
@@ -14263,13 +14265,13 @@ function printQRLabels() {
         background: white;
       }
       .ql-qr-img {
-        width: 20mm;
-        height: 20mm;
+        width: ${cfg.qrImg};
+        height: ${cfg.qrImg};
         display: block;
       }
       .ql-qr-placeholder {
-        width: 20mm;
-        height: 20mm;
+        width: ${cfg.qrImg};
+        height: ${cfg.qrImg};
         background: #eee;
         display: flex;
         align-items: center;
@@ -14279,6 +14281,13 @@ function printQRLabels() {
       }
     </style>
   </head><body>
+    <div class="print-reminder no-print" style="position:fixed;top:0;left:0;right:0;background:#0d1f3c;color:#fff;padding:12px 20px;font-family:Arial,sans-serif;font-size:14px;text-align:center;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+      ⚠️ <strong>IMPORTANT :</strong> Dans la fenêtre d'impression, réglez <strong>Marges = Aucune</strong> (ou « Sans marge ») pour un alignement exact des étiquettes &nbsp;·&nbsp; <button onclick="window.print()" style="background:#c9a84c;color:#0d1f3c;border:none;padding:6px 16px;border-radius:6px;font-weight:700;cursor:pointer;margin-left:8px;">🖨️ Imprimer</button>
+    </div>
+    <style>
+      @media print { .no-print { display: none !important; } }
+      @media screen { body { padding-top: 60px; } }
+    </style>
     ${pageWrappers}
   </body></html>`);
   w.document.close();
@@ -14287,9 +14296,9 @@ function printQRLabels() {
   let loaded = 0;
   const total = imgs.length;
   if (total === 0) {
-    setTimeout(() => w.print(), 400);
+    setTimeout(() => w.print(), 600);
   } else {
-    const tryPrint = () => { loaded++; if (loaded >= total) setTimeout(() => w.print(), 200); };
+    const tryPrint = () => { loaded++; if (loaded >= total) setTimeout(() => w.print(), 400); };
     Array.from(imgs).forEach(img => {
       if (img.complete) tryPrint();
       else { img.onload = tryPrint; img.onerror = tryPrint; }
