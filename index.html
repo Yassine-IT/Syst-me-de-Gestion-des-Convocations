@@ -14038,8 +14038,8 @@ function printQRLabels() {
   const isPetit = fmt === 'petit';
   // Dimensions selon le format choisi
   const cfg = isPetit
-    ? { h: '16.9mm', labelW: '48mm', rows: 17, perPage: 68, qrW: '14mm', qrImg: '12mm', pad: '0.8mm 1.2mm', fCode: '7.5px', fName: '5px', fMat: '4.5px', gap: '0.4mm', pagePad: '5mm 7mm', frame: false, label: '48×16,9mm · Ref 68 (4×17)' }
-    : { h: '25.5mm', labelW: '48.5mm', rows: 11, perPage: 44, qrW: '22mm', qrImg: '20mm', pad: '2mm 2.5mm', fCode: '10px', fName: '6px', fMat: '5.5px', gap: '1mm', pagePad: '8mm', frame: true, label: '48,5×25,5mm (44/page)' };
+    ? { h: '16.9mm', labelW: '48mm', rows: 17, perPage: 68, qrW: '15mm', qrImg: '12mm', qrPad: '1.5mm', pad: '0.8mm 1.2mm', fCode: '7.5px', fName: '5px', fMat: '4.5px', gap: '0.4mm', pagePad: '5mm 8mm 5mm 7mm', frame: false, label: '48×16,9mm · Ref 68 (4×17)' }
+    : { h: '25.5mm', labelW: '48.5mm', rows: 11, perPage: 44, qrW: '22mm', qrImg: '20mm', qrPad: '1mm', pad: '2mm 2.5mm', fCode: '10px', fName: '6px', fMat: '5.5px', gap: '1mm', pagePad: '8mm', frame: true, label: '48,5×25,5mm (44/page)' };
 
   const fNiveau = document.getElementById('qrlbl-niveau') ? document.getElementById('qrlbl-niveau').value : '';
   const fClass = document.getElementById('qrlbl-class') ? document.getElementById('qrlbl-class').value : '';
@@ -14261,7 +14261,7 @@ function printQRLabels() {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 1mm;
+        padding: ${cfg.qrPad};
         background: white;
       }
       .ql-qr-img {
