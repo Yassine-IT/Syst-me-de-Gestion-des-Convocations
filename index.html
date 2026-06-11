@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&amp;family=DM+Sans:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -7589,6 +7590,10 @@
                 <label class="form-label">Séance *</label>
                 <select class="form-select" id="prof-seance"><option value="10h45 – 12h00">10h45 – 12h00</option></select>
               </div>
+              <div class="form-group" style="flex:1;min-width:140px;">
+                <label class="form-label">📱 Tél. WhatsApp</label>
+                <input class="form-input" id="prof-phone" type="tel" placeholder="Ex: 0612345678" autocomplete="off" style="font-size:13px;">
+              </div>
               <button class="btn btn-success" onclick="addProfConvocation()" style="height: 42px;">➕ Ajouter</button><button id="prof-cancel-btn" class="btn btn-outline" style="height: 42px; display: none;">✖ Annuler</button>
             </div>
 
@@ -13830,6 +13835,81 @@
           </div>
         </div>
 
+        <!-- TEXTE CONVOCATION ÉLÈVES -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">🧑‍🎓</span>
+            <h3>Texte de la Convocation Élèves</h3>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px; color:rgba(13,31,60,0.55); line-height:1.7; margin-bottom:16px;">
+              Modifiez le texte et les instructions qui apparaissent sur la convocation des élèves. Les changements s'appliquent automatiquement à toutes les convocations imprimées.
+            </p>
+
+            <div class="form-group" style="margin-bottom:18px;">
+              <label class="form-label">Message d'introduction <span style="font-weight:400;color:rgba(13,31,60,0.45);">(optionnel — laissé vide = aucun paragraphe)</span></label>
+              <textarea class="form-input" id="cfg-eleve-text" rows="5" oninput="saveEleveTexts()" style="resize:vertical; line-height:1.6; font-family:inherit;"></textarea>
+              <div style="font-size:11px;color:rgba(13,31,60,0.45);margin-top:6px;line-height:1.6;">
+                💡 Laissez une ligne vide pour séparer les paragraphes. Toute mention « 30 minutes » est mise en gras automatiquement.
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:18px;">
+              <label class="form-label">Instructions aux candidat(e)s <span style="font-weight:400;color:rgba(13,31,60,0.45);">(une par ligne — format « Titre : description »)</span></label>
+              <textarea class="form-input" id="cfg-eleve-instructions" rows="7" oninput="saveEleveTexts()" style="resize:vertical; line-height:1.6; font-family:inherit;"></textarea>
+            </div>
+
+            <div class="btn-row" style="flex-wrap:wrap;gap:12px;">
+              <button class="btn btn-danger" onclick="resetEleveTexts()">↺ Réinitialiser le texte par défaut</button>
+            </div>
+            <div id="eleve-text-status" style="margin-top:12px;font-size:12px;color:var(--green);font-weight:600;"></div>
+          </div>
+        </div>
+
+        <!-- GESTION DES ZONES -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">📍</span>
+            <h3>Gestion des Zones</h3>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px; color:rgba(13,31,60,0.55); line-height:1.7; margin-bottom:16px;">
+              Ajoutez des zones supplémentaires. Elles apparaîtront partout où une zone se choisit : formulaire élève, convocations des professeurs et listes d'émargement.
+              Nombre total de zones disponibles : <strong id="zones-count" style="color:var(--navy);">0</strong>.
+            </p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;">
+              <div class="form-group" style="margin:0;">
+                <label class="form-label">Numéro de la nouvelle zone</label>
+                <input class="form-input" id="new-zone-input" type="number" min="1" placeholder="Ex : 24" style="width:160px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomZone();}">
+              </div>
+              <button class="btn btn-primary" onclick="addCustomZone()">➕ Ajouter la zone</button>
+            </div>
+            <div id="zones-manager-list" style="display:flex;flex-wrap:wrap;"></div>
+          </div>
+        </div>
+
+        <!-- GESTION DES CLASSES -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">🏷️</span>
+            <h3>Gestion des Classes</h3>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px; color:rgba(13,31,60,0.55); line-height:1.7; margin-bottom:16px;">
+              Ajoutez des classes personnalisées. Elles apparaîtront dans le formulaire d'ajout d'élève, sous le groupe « ⭐ Personnalisées ».
+              Classes personnalisées ajoutées : <strong id="classes-count" style="color:var(--navy);">0</strong>.
+            </p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;">
+              <div class="form-group" style="margin:0;">
+                <label class="form-label">Nom de la nouvelle classe</label>
+                <input class="form-input" id="new-class-input" placeholder="Ex : 2BACSVT-1" style="width:220px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomClass();}">
+              </div>
+              <button class="btn btn-primary" onclick="addCustomClass()">➕ Ajouter la classe</button>
+            </div>
+            <div id="classes-manager-list" style="display:flex;flex-wrap:wrap;"></div>
+          </div>
+        </div>
+
         <!-- BACKUP / RESTORE -->
         <div class="card">
           <div class="card-header">
@@ -14156,6 +14236,17 @@ const DEFAULT_PROF_TEXT = "Bonjour. Comme prévu, l'établissement organisera la
 const DEFAULT_PROF_INSTRUCTIONS = "Se présenter 20 minutes avant le début de la séance, muni de cette convocation.\nRecevoir le matériel d'examen et les consignes\nSuperviser les candidats selon les protocoles établis\nRespecter strictement les horaires et les procédures de surveillance\nRemettre les copies et documents à la fin de la séance";
 if (typeof settings.profText === 'undefined' || settings.profText === null) settings.profText = DEFAULT_PROF_TEXT;
 if (typeof settings.profInstructions === 'undefined' || settings.profInstructions === null) settings.profInstructions = DEFAULT_PROF_INSTRUCTIONS;
+
+// ── Texte de la convocation Élève (modifiable depuis Paramètres) ──
+const DEFAULT_ELEVE_TEXT = "";
+const DEFAULT_ELEVE_INSTRUCTIONS = "Présentation : Se présenter 30 minutes avant, muni de cette convocation.\nAbsence : Tout candidat absent ne sera pas autorisé à poursuivre l'examen.\nTricherie : Échange d'infos, appareils électroniques, documents falsifiés = exclusion.\nSanctions : Exclusion immédiate + interdiction jusqu'à 2 ans.\nSortie de salle : Interdite avant la moitié du temps imparti.\nMatériel : L'échange de matériel entre candidats est strictement interdit.";
+if (typeof settings.eleveText === 'undefined' || settings.eleveText === null) settings.eleveText = DEFAULT_ELEVE_TEXT;
+if (typeof settings.eleveInstructions === 'undefined' || settings.eleveInstructions === null) settings.eleveInstructions = DEFAULT_ELEVE_INSTRUCTIONS;
+
+// ── Listes gérées depuis Paramètres : zones et classes personnalisées ──
+if (!Array.isArray(settings.customZones)) settings.customZones = [];
+if (!Array.isArray(settings.customClasses)) settings.customClasses = [];
+
 let selectedStudents = new Set();
 let editingStudentId = null;
 let selectedForDelete = new Set();
@@ -14752,7 +14843,9 @@ function renderConvocationsTable() {
   const clsFilter = document.getElementById('conv-class-filter');
   if (clsFilter) {
     const prevVal = clsFilter.value;
-    const classes = [...new Set(students.map(s => s.class).filter(Boolean))].sort();
+    const classes = typeof getManagedClasses === 'function'
+      ? getManagedClasses().sort((a, b) => a.localeCompare(b))
+      : [...new Set(students.map(s => s.class).filter(Boolean))].sort();
     clsFilter.innerHTML = '<option value="">Toutes les classes</option>' + classes.map(c => `<option value="${c}"${c===prevVal?' selected':''}>${c}</option>`).join('');
   }
 
@@ -15069,6 +15162,8 @@ function buildConvocationHTML(student) {
       </table>
     </div>
 
+    ${renderEleveIntro()}
+
     <!-- INSTRUCTIONS SECTION HEADER -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:3mm;">
       <div style="height:1px;flex:1;background:rgba(13,31,60,0.08);"></div>
@@ -15076,20 +15171,9 @@ function buildConvocationHTML(student) {
       <div style="height:1px;flex:1;background:rgba(13,31,60,0.08);"></div>
     </div>
 
-    <!-- INSTRUCTIONS — 2-col compact grid -->
+    <!-- INSTRUCTIONS — 2-col compact grid (modifiable depuis Paramètres) -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin-bottom:4mm;">
-      ${[
-        ['Présentation','Se présenter <b>30 min avant</b>, muni de cette convocation.'],
-        ['Absence','Tout candidat absent ne sera pas autorisé à poursuivre l\'examen.'],
-        ['Tricherie','Échange d\'infos, appareils électroniques, documents falsifiés = exclusion.'],
-        ['Sanctions','Exclusion immédiate + interdiction jusqu\'à 2 ans.'],
-        ['Sortie de salle','Interdite avant <b>la moitié du temps imparti</b>.'],
-        ['Matériel','L\'échange de matériel entre candidats est strictement interdit.'],
-      ].map(([t,d],i)=>`
-        <div style="padding:6px 0;border-bottom:1px solid rgba(13,31,60,0.05);display:flex;gap:7px;align-items:flex-start;">
-          <div style="width:16px;height:16px;border-radius:3px;background:#0d1f3c;color:#c9a84c;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${i+1}</div>
-          <div><span style="font-size:9px;font-weight:800;color:#0d1f3c;text-transform:uppercase;letter-spacing:0.05em;">${t} : </span><span style="font-size:9px;color:#2d3748;line-height:1.5;">${d}</span></div>
-        </div>`).join('')}
+      ${renderEleveInstructionsGrid()}
     </div>
 
     <!-- FOOTER ROW -->
@@ -15305,6 +15389,283 @@ function loadProfTextFields() {
   const iEl = document.getElementById('cfg-prof-instructions');
   if (tEl) tEl.value = settings.profText || DEFAULT_PROF_TEXT;
   if (iEl) iEl.value = settings.profInstructions || DEFAULT_PROF_INSTRUCTIONS;
+}
+
+// ====================================================================
+// ===== TEXTE CONVOCATION ÉLÈVES (modifiable depuis Paramètres) =======
+// ====================================================================
+
+// Paragraphe d'introduction (optionnel) en haut des instructions élève.
+function renderEleveIntro() {
+  const txt = (settings.eleveText || '').trim();
+  if (!txt) return '';
+  const paras = txt.split(/\n+/).filter(p => p.trim() !== '');
+  return `<div style="margin-bottom:4mm;">` + paras.map(p => {
+    let safe = escapeProfHtml(p).replace(/(\d+\s*minutes?)/gi, '<strong>$1</strong>');
+    return `<p style="font-size:10px;line-height:1.7;color:#2d3748;margin:0 0 6px;text-align:justify;">${safe}</p>`;
+  }).join('') + `</div>`;
+}
+
+// Grille d'instructions élève : une ligne = "Titre : description".
+function renderEleveInstructionsGrid() {
+  let txt = (settings.eleveInstructions || DEFAULT_ELEVE_INSTRUCTIONS);
+  const items = txt.split(/\n+/).map(l => l.trim()).filter(Boolean);
+  if (items.length === 0) return '';
+  return items.map((line, i) => {
+    let title = '', desc = line;
+    const m = line.match(/^([^:]{1,40}):\s*(.+)$/);
+    if (m) { title = m[1].trim(); desc = m[2].trim(); }
+    const safeT = escapeProfHtml(title);
+    const safeD = escapeProfHtml(desc).replace(/(\d+\s*minutes?)/gi, '<strong>$1</strong>');
+    return `
+        <div style="padding:6px 0;border-bottom:1px solid rgba(13,31,60,0.05);display:flex;gap:7px;align-items:flex-start;">
+          <div style="width:16px;height:16px;border-radius:3px;background:#0d1f3c;color:#c9a84c;font-size:8px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${i+1}</div>
+          <div>${safeT ? `<span style="font-size:9px;font-weight:800;color:#0d1f3c;text-transform:uppercase;letter-spacing:0.05em;">${safeT} : </span>` : ''}<span style="font-size:9px;color:#2d3748;line-height:1.5;">${safeD}</span></div>
+        </div>`;
+  }).join('');
+}
+
+function saveEleveTexts() {
+  const tEl = document.getElementById('cfg-eleve-text');
+  const iEl = document.getElementById('cfg-eleve-instructions');
+  if (tEl) settings.eleveText = tEl.value;
+  if (iEl) settings.eleveInstructions = iEl.value;
+  persist();
+  const status = document.getElementById('eleve-text-status');
+  if (status) {
+    status.textContent = '✅ Texte enregistré — appliqué aux convocations élèves';
+    clearTimeout(window.__eleveTextTimer);
+    window.__eleveTextTimer = setTimeout(() => { status.textContent = ''; }, 2500);
+  }
+}
+
+function resetEleveTexts() {
+  showConfirm('Réinitialiser le texte et les instructions des élèves par défaut ?', () => {
+    settings.eleveText = DEFAULT_ELEVE_TEXT;
+    settings.eleveInstructions = DEFAULT_ELEVE_INSTRUCTIONS;
+    persist();
+    loadEleveTextFields();
+    showToast('✅ Texte réinitialisé', 'success');
+  });
+}
+
+function loadEleveTextFields() {
+  const tEl = document.getElementById('cfg-eleve-text');
+  const iEl = document.getElementById('cfg-eleve-instructions');
+  if (tEl) tEl.value = (settings.eleveText !== undefined && settings.eleveText !== null) ? settings.eleveText : DEFAULT_ELEVE_TEXT;
+  if (iEl) iEl.value = settings.eleveInstructions || DEFAULT_ELEVE_INSTRUCTIONS;
+}
+
+// ====================================================================
+// ===== GESTION DES ZONES & CLASSES (depuis Paramètres) ==============
+// ====================================================================
+
+// Liste complète des numéros de zone (base 1–23 + zones des élèves + zones perso), triée.
+function getManagedZoneNumbers() {
+  const base = [];
+  for (let i = 1; i <= 23; i++) base.push(String(i));
+  const fromStudents = students.map(s => (s.number || '').toString().replace(/\D/g, '')).filter(Boolean);
+  const custom = (settings.customZones || []).map(z => z.toString().replace(/\D/g, '')).filter(Boolean);
+  const all = [...new Set([...base, ...fromStudents, ...custom])];
+  return all.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+}
+
+// Liste des classes (élèves + classes perso).
+function getManagedClasses() {
+  const fromStudents = students.map(s => s.class).filter(Boolean);
+  const custom = (settings.customClasses || []).filter(Boolean);
+  return [...new Set([...fromStudents, ...custom])];
+}
+
+// Réinjecte les zones/classes gérées dans tous les menus déroulants concernés.
+function syncManagedListsToUI() {
+  const zoneNums = getManagedZoneNumbers();
+
+  // Formulaire élève — Zone (valeur = chiffre)
+  const sNum = document.getElementById('s-number');
+  if (sNum) {
+    const prev = sNum.value;
+    sNum.innerHTML = '<option value="">-- Sélectionner Zone --</option>' +
+      zoneNums.map(n => `<option value="${n}">Zone ${n}</option>`).join('');
+    sNum.value = prev;
+  }
+
+  // Émargement — filtre Zone (valeur = "zone N")
+  const emZone = document.getElementById('em-zone');
+  if (emZone) {
+    const prev = emZone.value;
+    emZone.innerHTML = '<option value="">— Toutes les zones —</option>' +
+      zoneNums.map(n => `<option value="zone ${n}">Zone ${n}</option>`).join('');
+    emZone.value = prev;
+  }
+
+  // Formulaire élève — Classe : ajoute un groupe "Personnalisées" sans toucher aux groupes existants
+  const sClass = document.getElementById('s-class');
+  if (sClass) {
+    const old = sClass.querySelector('optgroup[data-custom="1"]');
+    if (old) old.remove();
+    const custom = (settings.customClasses || []).filter(Boolean);
+    if (custom.length) {
+      const og = document.createElement('optgroup');
+      og.label = '⭐ Personnalisées';
+      og.setAttribute('data-custom', '1');
+      og.innerHTML = custom.map(c => `<option value="${c}">${c}</option>`).join('');
+      sClass.appendChild(og);
+    }
+  }
+
+  // Rafraîchit le menu Zone des convocations professeurs
+  if (typeof initProfSelects === 'function') initProfSelects();
+
+  // ─── Classes personnalisées → Convocations élèves (conv-class-filter) ──────
+  const convCls = document.getElementById('conv-class-filter');
+  if (convCls) {
+    const prevConv = convCls.value;
+    const allClasses = getManagedClasses().sort((a, b) => a.localeCompare(b));
+    convCls.innerHTML = '<option value="">Toutes les classes</option>' +
+      allClasses.map(c => `<option value="${c}"${c === prevConv ? ' selected' : ''}>${c}</option>`).join('');
+    if (prevConv && !allClasses.includes(prevConv)) convCls.value = '';
+  }
+
+  // ─── Zones + Classes → Étiquettes table (lbl-zone / lbl-class) ──────────────
+  const lblClass = document.getElementById('lbl-class');
+  if (lblClass) {
+    const prev = lblClass.value;
+    const allClasses = getManagedClasses().sort((a, b) => a.localeCompare(b));
+    lblClass.innerHTML = '<option value="">Toutes les classes</option>' +
+      allClasses.map(c => `<option value="${c}"${c === prev ? ' selected' : ''}>${c}</option>`).join('');
+    if (prev && !allClasses.includes(prev)) lblClass.value = '';
+  }
+  const lblZone = document.getElementById('lbl-zone');
+  if (lblZone) {
+    const prev = lblZone.value;
+    const zoneNums = getManagedZoneNumbers();
+    lblZone.innerHTML = '<option value="">Toutes les zones</option>' +
+      zoneNums.map(n => `<option value="zone ${n}"${'zone ' + n === prev ? ' selected' : ''}>Zone ${n}</option>`).join('');
+    if (prev && !zoneNums.map(n => 'zone ' + n).includes(prev)) lblZone.value = '';
+  }
+
+  // ─── Zones + Classes → Étiquettes QR (qrlbl-zone / qrlbl-class) ─────────────
+  const qrClass = document.getElementById('qrlbl-class');
+  if (qrClass) {
+    const prev = qrClass.value;
+    const niveauSel = document.getElementById('qrlbl-niveau');
+    const niveau = niveauSel ? niveauSel.value : '';
+    let baseStudents = niveau
+      ? students.filter(s => typeof matchNiveauClass === 'function' ? matchNiveauClass(niveau, s.class) : true)
+      : students;
+    const allClasses = getManagedClasses()
+      .filter(c => !niveau || (typeof matchNiveauClass === 'function' ? matchNiveauClass(niveau, c) : true))
+      .sort((a, b) => a.localeCompare(b));
+    qrClass.innerHTML = '<option value="">Toutes les classes</option>' +
+      allClasses.map(c => `<option value="${c}"${c === prev ? ' selected' : ''}>${c}</option>`).join('');
+    if (prev && !allClasses.includes(prev)) qrClass.value = '';
+  }
+  const qrZone = document.getElementById('qrlbl-zone');
+  if (qrZone) {
+    const prev = qrZone.value;
+    const zoneNums = getManagedZoneNumbers();
+    const zoneVals = zoneNums.map(n => 'zone ' + n);
+    qrZone.innerHTML = '<option value="">Toutes les zones</option>' +
+      zoneNums.map(n => `<option value="zone ${n}"${'zone ' + n === prev ? ' selected' : ''}>Zone ${n}</option>`).join('');
+    if (prev && !zoneVals.includes(prev)) qrZone.value = '';
+  }
+
+  // ─── Classes → Export Notes (export-class-select) ────────────────────────────
+  const expCls = document.getElementById('export-class-select');
+  if (expCls) {
+    const prev = expCls.value;
+    const niveauSel = document.getElementById('export-niveau-select');
+    const niveau = niveauSel ? niveauSel.value : '';
+    let allClasses = getManagedClasses().sort((a, b) => a.localeCompare(b));
+    if (niveau === '3JHS') allClasses = allClasses.filter(c => c.startsWith('3 JHS') || c.startsWith('3JHS'));
+    else if (niveau === '1BAC') allClasses = allClasses.filter(c => c.startsWith('1BAC'));
+    else if (niveau === '2BAC') allClasses = allClasses.filter(c => c.startsWith('2BAC'));
+    expCls.innerHTML = '<option value="">-- Sélectionner une classe --</option>' +
+      allClasses.map(c => `<option value="${c}"${c === prev ? ' selected' : ''}>${c}</option>`).join('');
+    if (prev && !allClasses.includes(prev)) expCls.value = '';
+  }
+}
+
+function renderZonesManager() {
+  const box = document.getElementById('zones-manager-list');
+  const all = getManagedZoneNumbers();
+  const countEl = document.getElementById('zones-count');
+  if (countEl) countEl.textContent = all.length;
+  if (!box) return;
+  const custom = (settings.customZones || []).map(z => z.toString().replace(/\D/g, '')).filter(Boolean);
+  box.innerHTML = all.map(n => {
+    const isCustom = custom.includes(n);
+    return `<span style="display:inline-flex;align-items:center;gap:6px;background:${isCustom ? 'rgba(201,168,76,0.15)' : 'rgba(13,31,60,0.05)'};color:${isCustom ? '#a0732a' : 'rgba(13,31,60,0.7)'};padding:4px 10px;border-radius:14px;font-size:12px;font-weight:600;margin:3px;">
+      Zone ${n}${isCustom ? ` <i class="fas fa-times" title="Retirer" style="cursor:pointer;" onclick="removeCustomZone('${n}')"></i>` : ''}
+    </span>`;
+  }).join('');
+}
+
+function addCustomZone() {
+  const inp = document.getElementById('new-zone-input');
+  if (!inp) return;
+  const raw = (inp.value || '').toString().replace(/\D/g, '');
+  if (!raw) { showToast('Entrez un numéro de zone valide', 'error'); return; }
+  if (!Array.isArray(settings.customZones)) settings.customZones = [];
+  if (getManagedZoneNumbers().includes(raw)) { showToast(`Zone ${raw} existe déjà`, 'info'); inp.value = ''; return; }
+  settings.customZones.push(raw);
+  persist();
+  inp.value = '';
+  syncManagedListsToUI();
+  renderZonesManager();
+  showToast(`✅ Zone ${raw} ajoutée`, 'success');
+}
+
+function removeCustomZone(n) {
+  const key = n.toString().replace(/\D/g, '');
+  settings.customZones = (settings.customZones || []).filter(z => z.toString().replace(/\D/g, '') !== key);
+  persist();
+  syncManagedListsToUI();
+  renderZonesManager();
+  showToast(`🗑 Zone ${key} retirée`, 'info');
+}
+
+function renderClassesManager() {
+  const box = document.getElementById('classes-manager-list');
+  const custom = (settings.customClasses || []).filter(Boolean);
+  const countEl = document.getElementById('classes-count');
+  if (countEl) countEl.textContent = custom.length;
+  if (!box) return;
+  if (custom.length === 0) {
+    box.innerHTML = '<span style="font-size:12px;color:rgba(13,31,60,0.4);">Aucune classe personnalisée ajoutée pour le moment.</span>';
+    return;
+  }
+  box.innerHTML = custom.map(c => {
+    const safe = escapeProfHtml(c);
+    const arg = c.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(201,168,76,0.15);color:#a0732a;padding:4px 10px;border-radius:14px;font-size:12px;font-weight:600;margin:3px;">
+      ${safe} <i class="fas fa-times" title="Retirer" style="cursor:pointer;" onclick="removeCustomClass('${arg}')"></i>
+    </span>`;
+  }).join('');
+}
+
+function addCustomClass() {
+  const inp = document.getElementById('new-class-input');
+  if (!inp) return;
+  const val = (inp.value || '').toString().trim();
+  if (!val) { showToast('Entrez un nom de classe', 'error'); return; }
+  if (!Array.isArray(settings.customClasses)) settings.customClasses = [];
+  if (getManagedClasses().includes(val)) { showToast(`« ${val} » existe déjà`, 'info'); inp.value = ''; return; }
+  settings.customClasses.push(val);
+  persist();
+  inp.value = '';
+  syncManagedListsToUI();
+  renderClassesManager();
+  showToast(`✅ Classe « ${val} » ajoutée`, 'success');
+}
+
+function removeCustomClass(c) {
+  settings.customClasses = (settings.customClasses || []).filter(x => x !== c);
+  persist();
+  syncManagedListsToUI();
+  renderClassesManager();
+  showToast('🗑 Classe retirée', 'info');
 }
 
 // =================== DASHBOARD ===================
@@ -15575,6 +15936,10 @@ function renderAll() {
     }
   }
   loadProfTextFields();
+  loadEleveTextFields();
+  syncManagedListsToUI();
+  renderZonesManager();
+  renderClassesManager();
 }
 
 // =================== INIT ===================
@@ -15590,13 +15955,21 @@ function initTicketSelects() {
   const prevClass = clsSel.value;
   const prevZone  = zoneSel.value;
 
-  const classes = [...new Set(students.map(s => s.class))].sort();
-  const zones = [...new Set(students.map(s => s.number).filter(Boolean))].sort((a,b) => {
-    return parseInt(a.toString().replace(/\D/g,'')) - parseInt(b.toString().replace(/\D/g,''));
-  });
+  const classes = typeof getManagedClasses === 'function'
+    ? getManagedClasses().sort((a, b) => a.localeCompare(b))
+    : [...new Set(students.map(s => s.class))].sort();
+  const zoneNums = typeof getManagedZoneNumbers === 'function'
+    ? getManagedZoneNumbers()
+    : [...new Set(students.map(s => (s.number||'').toString().replace(/\D/g,'')).filter(Boolean))]
+        .sort((a,b)=>parseInt(a)-parseInt(b));
 
-  clsSel.innerHTML = '<option value="">Toutes les classes</option>' + classes.map(c => `<option value="${c}"${c===prevClass?' selected':''}>${c}</option>`).join('');
-  zoneSel.innerHTML = '<option value="">Toutes les zones</option>' + zones.map(z => `<option value="${z}"${z===prevZone?' selected':''}>Zone ${z.toString().replace(/\D/g,'')}</option>`).join('');
+  clsSel.innerHTML = '<option value="">Toutes les classes</option>' +
+    classes.map(c => `<option value="${c}"${c===prevClass?' selected':''}>${c}</option>`).join('');
+  zoneSel.innerHTML = '<option value="">Toutes les zones</option>' +
+    zoneNums.map(n => {
+      const z = 'zone ' + n;
+      return `<option value="${z}"${z===prevZone?' selected':''}>Zone ${n}</option>`;
+    }).join('');
 }
 
 function generateQRDataURL(text, size) {
@@ -16227,17 +16600,24 @@ function initQRLabelSelects() {
     niveauStudents = students.filter(s => matchNiveauClass(niveau, s.class));
   }
 
-  const classes = [...new Set(niveauStudents.map(s => s.class).filter(Boolean))].sort();
-  const zones   = [...new Set(niveauStudents.map(s => s.number).filter(Boolean))].sort((a,b) => {
-    const na = parseInt(a.toString().replace(/\D/g,'')) || 0;
-    const nb = parseInt(b.toString().replace(/\D/g,'')) || 0;
-    return na - nb;
-  });
+  // Merge student-derived classes with custom classes, then filter by niveau
+  const allManagedClasses = typeof getManagedClasses === 'function' ? getManagedClasses() : [...new Set(students.map(s => s.class).filter(Boolean))];
+  const classes = allManagedClasses.filter(c => !niveau || matchNiveauClass(niveau, c)).sort((a,b) => a.localeCompare(b));
+  const allManagedZones = typeof getManagedZoneNumbers === 'function' ? getManagedZoneNumbers() : [];
+  // For zones: include student zones that match the niveau filter + all custom zones
+  const studentZoneNums = [...new Set(
+    (niveau ? students.filter(s => matchNiveauClass(niveau, s.class)) : students)
+      .map(s => (s.number || '').toString().replace(/\D/g, '')).filter(Boolean)
+  )];
+  const zoneNums = [...new Set([...studentZoneNums, ...allManagedZones])].sort((a,b) => parseInt(a)-parseInt(b));
   const prevClass = classSel.value;
   const prevZone  = zoneSel.value;
   const prevMat   = matSel ? matSel.value : '';
   classSel.innerHTML = '<option value="">Toutes les classes</option>' + classes.map(c => `<option value="${c}"${c===prevClass?' selected':''}>${c}</option>`).join('');
-  zoneSel.innerHTML  = '<option value="">Toutes les zones</option>'   + zones.map(z => `<option value="${z}"${z===prevZone?' selected':''}>${z}</option>`).join('');
+  zoneSel.innerHTML  = '<option value="">Toutes les zones</option>' + zoneNums.map(n => {
+    const z = 'zone ' + n;
+    return `<option value="${z}"${z===prevZone?' selected':''}>Zone ${n}</option>`;
+  }).join('');
   if (matSel) {
     let filteredExams = exams;
     if (niveau) {
@@ -16597,8 +16977,12 @@ function initExportClassSelect() {
   const prev = sel.value;
   const niveau = document.getElementById('export-niveau-select') ? document.getElementById('export-niveau-select').value : '';
 
-  let classes = [...new Set(students.map(s => s.class).filter(Boolean))].sort();
-  if (niveau === '1BAC') {
+  let classes = typeof getManagedClasses === 'function'
+    ? getManagedClasses().sort((a, b) => a.localeCompare(b))
+    : [...new Set(students.map(s => s.class).filter(Boolean))].sort();
+  if (niveau === '3JHS') {
+    classes = classes.filter(c => c.startsWith('3 JHS') || c.startsWith('3JHS'));
+  } else if (niveau === '1BAC') {
     classes = classes.filter(c => c.startsWith('1BAC'));
   } else if (niveau === '2BAC') {
     classes = classes.filter(c => c.startsWith('2BAC'));
@@ -16833,6 +17217,41 @@ function updateBackupSummary() {
 
 let profsConvocations = JSON.parse(localStorage.getItem('profsConvocations') || JSON.stringify(__embedded.profsConvocations || []));
 
+// ── Annuaire des téléphones : { "Nom Prénom": "0612345678" }
+// Indépendant des convocations — un seul numéro par professeur, visible partout.
+let profPhones = JSON.parse(localStorage.getItem('profPhones') || '{}');
+// Migration : récupère les numéros déjà saisis dans les convocations existantes
+(function migrateProfPhones() {
+  let changed = false;
+  profsConvocations.forEach(p => {
+    if (p.phone && p.phone.trim() && !profPhones[p.name]) {
+      profPhones[p.name] = p.phone.trim();
+      changed = true;
+    }
+  });
+  if (changed) localStorage.setItem('profPhones', JSON.stringify(profPhones));
+})();
+
+function saveProfPhones() {
+  localStorage.setItem('profPhones', JSON.stringify(profPhones));
+}
+
+function getProfPhone(name) {
+  return (profPhones[(name || '').trim()] || '').trim();
+}
+
+function setProfPhone(name, phone) {
+  name = (name || '').trim();
+  phone = (phone || '').trim();
+  if (!name) return;
+  if (phone) {
+    profPhones[name] = phone;
+  } else {
+    delete profPhones[name];
+  }
+  saveProfPhones();
+}
+
 function populateRenameSelect() {
   const sel = document.getElementById('rename-old');
   if (!sel) return;
@@ -16851,6 +17270,9 @@ function renameProfGlobal() {
   if (count === 0) { showToast('Aucune convocation trouvée pour ce prof', 'error'); return; }
   showConfirm(`Renommer "${oldName}" → "${newName}" dans ${count} convocation(s) ?`, () => {
     profsConvocations = profsConvocations.map(p => p.name === oldName ? { ...p, name: newName } : p);
+    // Transfère le numéro de téléphone vers le nouveau nom
+    const existingPhone = getProfPhone(oldName);
+    if (existingPhone) { setProfPhone(newName, existingPhone); setProfPhone(oldName, ''); }
     saveProfData();
     document.getElementById('rename-new').value = '';
     renderProfsConvocations();
@@ -16863,8 +17285,11 @@ function uid() {
 }
 
 function initProfSelects() {
-  // Zones from students
-  const zones = [...new Set(students.map(s => s.number).filter(Boolean))].sort((a, b) => {
+  // Zones from students + zones personnalisées (Paramètres)
+  const customZoneVals = (settings.customZones || [])
+    .map(z => 'zone ' + z.toString().replace(/\D/g, ''))
+    .filter(v => /\d/.test(v));
+  const zones = [...new Set([...students.map(s => s.number).filter(Boolean), ...customZoneVals])].sort((a, b) => {
     const na = parseInt(a.toString().replace(/\D/g,'')) || 0;
     const nb = parseInt(b.toString().replace(/\D/g,'')) || 0;
     return na - nb;
@@ -17022,9 +17447,12 @@ function showProfConflictWarning(conflicts, name, onProceed) {
 }
 
 // Enregistre réellement la convocation (ajout ou mise à jour).
-function commitProfConvocation(name, zone, matiere, date, salle, seance) {
+function commitProfConvocation(name, zone, matiere, date, salle, seance, phone) {
+  phone = (phone || '').trim();
+  // Sauvegarde du numéro dans l'annuaire global (par nom de prof)
+  setProfPhone(name, phone);
   if (editingProfId) {
-    // UPDATE existing entry
+    // UPDATE existing entry (phone no longer stored per-entry)
     profsConvocations = profsConvocations.map(p =>
       p.id === editingProfId ? { ...p, name, zone, matiere, date, salle, seance } : p
     );
@@ -17049,6 +17477,7 @@ function addProfConvocation() {
   const date = document.getElementById('prof-date').value;
   const salle = document.getElementById('prof-salle').value;
   const seance = document.getElementById('prof-seance').value;
+  const phone = (document.getElementById('prof-phone') ? document.getElementById('prof-phone').value.trim() : '');
 
   if (!name || !zone || !matiere || !date || !salle || !seance) {
     showToast('⚠️ Complétez tous les champs', 'error');
@@ -17059,12 +17488,12 @@ function addProfConvocation() {
   const conflicts = findProfTimeConflicts(name, date, seance, editingProfId);
   if (conflicts.length > 0) {
     showProfConflictWarning(conflicts, name, () =>
-      commitProfConvocation(name, zone, matiere, date, salle, seance)
+      commitProfConvocation(name, zone, matiere, date, salle, seance, phone)
     );
     return;
   }
 
-  commitProfConvocation(name, zone, matiere, date, salle, seance);
+  commitProfConvocation(name, zone, matiere, date, salle, seance, phone);
 }
 
 function clearProfForm() {
@@ -17074,6 +17503,7 @@ function clearProfForm() {
   document.getElementById('prof-date').value = '';
   document.getElementById('prof-salle').value = '';
   document.getElementById('prof-seance').value = '';
+  const ph = document.getElementById('prof-phone'); if (ph) ph.value = '';
   initProfSelects();
 }
 
@@ -17114,10 +17544,34 @@ function renderProfsConvocations() {
     return;
   }
   
-  list.innerHTML = profsConvocations.map(p => `
+  list.innerHTML = profsConvocations.map(p => {
+    // Build WhatsApp message
+    const waMsg = encodeURIComponent(
+      `📋 *Convocation de Surveillance*\n\n` +
+      `👤 *${p.name}*\n` +
+      `📚 Matière : ${p.matiere}\n` +
+      `📅 Date : ${formatDate(p.date)}\n` +
+      `⏰ Séance : ${p.seance}\n` +
+      `📍 Zone : ${p.zone} — ${p.salle}\n\n` +
+      `Merci de vous présenter 20 min avant le début.\n` +
+      `🏫 The Anglo School`
+    );
+    const rawPhone = getProfPhone(p.name).replace(/\D/g, '');
+    const waPhone = rawPhone.startsWith('0') ? '212' + rawPhone.slice(1) : rawPhone;
+    const waBtn = rawPhone
+      ? `<button onclick="shareProf('${p.name.replace(/'/g, "\\'")}')"
+           style="display:inline-flex;align-items:center;gap:5px;background:#25D366;color:white;border:none;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;">
+           <svg viewBox="0 0 24 24" width="13" height="13" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.101.543 4.072 1.497 5.784L.057 23.943l6.305-1.654A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.833c-1.784 0-3.448-.479-4.882-1.314l-.35-.208-3.644.956.974-3.556-.228-.364A9.867 9.867 0 012.167 12C2.167 6.545 6.545 2.167 12 2.167S21.833 6.545 21.833 12 17.455 21.833 12 21.833z"/></svg>
+           📸 Envoyer
+         </button>`
+      : `<span style="font-size:10px;color:rgba(13,31,60,0.35);font-style:italic;">Pas de n°</span>`;
+    return `
     <div style="background:white;border-radius:12px;border:1px solid rgba(13,31,60,0.1);padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
-      <div>
-        <div style="font-weight:700;font-size:14px;color:var(--navy);">${p.name}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:14px;color:var(--navy);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          ${p.name}
+          ${waBtn}
+        </div>
         <div style="font-size:11px;color:rgba(13,31,60,0.6);margin-top:4px;">
           <span style="background:rgba(201,168,76,0.1);color:var(--gold);padding:2px 8px;border-radius:12px;font-weight:600;margin-right:6px;display:inline-block;">${p.zone}</span>
           <span style="background:rgba(201,168,76,0.1);color:var(--gold);padding:2px 8px;border-radius:12px;font-weight:600;margin-right:6px;display:inline-block;">✏️ ${p.matiere}</span>
@@ -17126,12 +17580,12 @@ function renderProfsConvocations() {
           <span style="background:rgba(13,31,60,0.07);color:rgba(13,31,60,0.6);padding:2px 8px;border-radius:12px;font-weight:600;display:inline-block;">${p.seance}</span>
         </div>
       </div>
-      <div style="display:flex;gap:6px;">
+      <div style="display:flex;gap:6px;margin-left:10px;flex-shrink:0;">
         <button class="btn-icon" onclick="editProfConvocation('${p.id}')"><i class="fas fa-edit" style="color:var(--navy);"></i></button>
         <button class="btn-icon danger" onclick="deleteProfConvocation('${p.id}')"><i class="fas fa-trash"></i></button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
   populateRenameSelect();
 }
 
@@ -17145,6 +17599,7 @@ function editProfConvocation(id) {
 
   // Step 1: Nom
   document.getElementById('prof-name').value = prof.name;
+  const phEl = document.getElementById('prof-phone'); if (phEl) phEl.value = getProfPhone(prof.name);
 
   // Step 2: Zone → génère les options Salle → ensuite setter Salle
   document.getElementById('prof-zone').value = prof.zone;
@@ -17224,6 +17679,7 @@ function cancelProfEdit() {
   document.getElementById('prof-date').value = '';
   document.getElementById('prof-salle').value = '';
   document.getElementById('prof-seance').value = '';
+  const phc = document.getElementById('prof-phone'); if (phc) phc.value = '';
 
   const addBtn = document.querySelector('[onclick="addProfConvocation()"]');
   if (addBtn) {
@@ -17551,6 +18007,78 @@ function buildGroupedProfConvocationHTML(profName, assignments) {
   </div>
 
 </div>`;
+}
+
+function shareProf(profName) {
+  // 1. Collect all assignments for this prof
+  const assignments = profsConvocations.filter(p =>
+    p.name.trim().toLowerCase() === profName.trim().toLowerCase()
+  );
+  if (assignments.length === 0) {
+    showToast('Aucune convocation trouvée', 'error');
+    return;
+  }
+
+  const phone = getProfPhone(profName);
+  const rawPhone = phone.replace(/\D/g, '');
+  const waPhone = rawPhone.startsWith('0') ? '212' + rawPhone.slice(1) : rawPhone;
+
+  // 2. Build WhatsApp text message
+  const sorted = [...assignments].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.matiere.localeCompare(b.matiere));
+  const lignes = sorted.map(p =>
+    `📅 ${formatDate(p.date)} | ✏️ ${p.matiere}\n📍 ${p.zone} — ${p.salle} | ⏰ ${p.seance}`
+  ).join('\n\n');
+
+  const waMsg = encodeURIComponent(
+    `📋 *Convocation de Surveillance*\n\n` +
+    `👤 *${profName}*\n\n` +
+    `${lignes}\n\n` +
+    `⚠️ Merci de vous présenter *20 minutes avant* le début de chaque séance.\n` +
+    `🏫 The Anglo School — La Direction`
+  );
+
+  // 3. Build the convocation HTML into a hidden off-screen div
+  const convHTML = buildGroupedProfConvocationHTML(profName, assignments);
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:white;z-index:-1;';
+  wrapper.innerHTML = convHTML;
+  document.body.appendChild(wrapper);
+
+  showToast('⏳ Génération de l\'image…', 'info');
+
+  // 4. Screenshot with html2canvas
+  html2canvas(wrapper.firstElementChild, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: '#ffffff',
+    logging: false,
+    width: 794,
+    windowWidth: 794
+  }).then(canvas => {
+    document.body.removeChild(wrapper);
+
+    // 5. Download PNG
+    const link = document.createElement('a');
+    const safeName = profName.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '_');
+    link.download = `Convocation_${safeName}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+
+    // 6. Open WhatsApp after short delay (let download start)
+    setTimeout(() => {
+      const waUrl = waPhone
+        ? `https://wa.me/${waPhone}?text=${waMsg}`
+        : `https://wa.me/?text=${waMsg}`;
+      window.open(waUrl, '_blank');
+    }, 800);
+
+    showToast('✅ Image téléchargée — WhatsApp ouvert !', 'success');
+  }).catch(err => {
+    document.body.removeChild(wrapper);
+    console.error('html2canvas error:', err);
+    showToast('❌ Erreur lors de la génération de l\'image', 'error');
+  });
 }
 
 function handleImportProfsExcel(evt) {
